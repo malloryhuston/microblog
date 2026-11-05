@@ -4,10 +4,11 @@ from time import time
 from typing import Optional
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from flask import current_app
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
-from app import app, db, login
+from app import db, login
 
 
 followers = sa.Table(
@@ -16,7 +17,7 @@ followers = sa.Table(
     sa.Column('follower_id', sa.Integer, sa.ForeignKey('user.id'),
               primary_key=True),
     sa.Column('followed_id', sa.Integer, sa.ForeignKey('user.id'),
-              primary_key=True),
+              primary_key=True)
 )
 
 
@@ -86,7 +87,7 @@ class User(UserMixin, db.Model):
             .join(Author.followers.of_type(Follower), isouter=True)
             .where(sa.or_(
                 Follower.id == self.id,
-                Author.id == self.id
+                Author.id == self.id,
             ))
             .group_by(Post)
             .order_by(Post.timestamp.desc())
@@ -95,12 +96,12 @@ class User(UserMixin, db.Model):
     def get_reset_password_token(self, expires_in=600):
         return jwt.encode(
             {'reset_password': self.id, 'exp': time() + expires_in},
-            app.config['SECRET_KEY'], algorithm='HS256')
+            current_app.config['SECRET_KEY'], algorithm='HS256')
 
     @staticmethod
     def verify_reset_password_token(token):
         try:
-            id = jwt.decode(token, app.config['SECRET_KEY'],
+            id = jwt.decode(token, current_app.config['SECRET_KEY'],
                             algorithms=['HS256'])['reset_password']
         except Exception:
             return
@@ -122,6 +123,6 @@ class Post(db.Model):
     language: so.Mapped[Optional[str]] = so.mapped_column(sa.String(5))
 
     author: so.Mapped[User] = so.relationship(back_populates='posts')
-    
+
     def __repr__(self):
         return '<Post {}>'.format(self.body)
